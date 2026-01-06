@@ -1,0 +1,71 @@
+local RS = game:GetService("ReplicatedStorage")
+local CommF_ = RS.Remotes.CommF_
+
+-- ===== CHECK ELITE =====
+local function HasElite()
+    local ok, msg = pcall(function()
+        return CommF_:InvokeServer("EliteHunter")
+    end)
+
+    if not ok or type(msg) ~= "string" then
+        return false
+    end
+
+    msg = msg:lower()
+    return msg:find("deandre")
+        or msg:find("urban")
+        or msg:find("diavolo")
+end
+
+-- ===== MAIN =====
+if HasElite() then
+    print("🔥 Có Elite → chạy script chính")
+
+    -- 🔴 LINK 1: THAY SCRIPT BẠN MUỐN CHẠY Ở ĐÂY
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/tranthoaa/scripts/refs/heads/main/yama?token=GHSAT0AAAAAADSRRODRVS7FT47URWNHUF4Y2K4P7SA"))()
+
+else
+    print("❌ Không có Elite → chạy hop low server")
+
+    local TS = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+
+local plr = Players.LocalPlayer
+local placeId = game.PlaceId
+
+-- lưu server đã vào
+local Joined = {}
+Joined[game.JobId] = true
+
+local function HopLowPlayer()
+    local url =
+        "https://games.roblox.com/v1/games/"
+        .. placeId
+        .. "/servers/Public?sortOrder=Asc&limit=50"
+
+    local data = HttpService:JSONDecode(game:HttpGet(url))
+
+    local bestServer
+    local lowest = math.huge
+
+    for _, s in pairs(data.data) do
+        if not Joined[s.id] and s.playing < s.maxPlayers then
+            if s.playing < lowest then
+                lowest = s.playing
+                bestServer = s
+            end
+        end
+    end
+
+    if bestServer then
+        Joined[bestServer.id] = true
+        TS:TeleportToPlaceInstance(placeId, bestServer.id, plr)
+    else
+        -- fallback nhanh
+        TS:Teleport(placeId, plr)
+    end
+end
+
+HopLowPlayer()
+end
