@@ -1,68 +1,89 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local CommF = ReplicatedStorage.Remotes.CommF_
-local placeId = game.PlaceId
-local TARGET_MASTERY = 350
-local RETRY_TIME = 30 -- 30 giây
 
--- ===== Lấy mastery =====
-local function getInventory()
-    local inv = {}
+-- ===== CHECK ĐANG CẦM KIẾM =====
+local function isEquipped(name)
+    if not player.Character then return false end
+    for _, v in pairs(player.Character:GetChildren()) do
+        if v:IsA("Tool") and v.Name:lower():find(name:lower()) then
+            return true
+        end
+    end
+    return false
+end
+
+-- ===== UNEQUIP TẤT CẢ =====
+local function unequipAll()
+    if not player.Character then return end
+    for _, v in pairs(player.Character:GetChildren()) do
+        if v:IsA("Tool") then
+            v.Parent = player.Backpack
+        end
+    end
+end
+
+-- ===== EQUIP YAMA (FALLBACK) =====
+local function equipYama()
+    unequipAll()
+    task.wait(0.2)
+
+    -- cách 1
     pcall(function()
-        inv = CommF:InvokeServer("getInventory") or {}
+        CommF:InvokeServer("EquipWeapon", "Yama")
     end)
-    return inv
-end
+    task.wait(0.4)
+    if isEquipped("Yama") then return true end
 
-local function getMastery(name)
-    for _, item in pairs(getInventory()) do
-        if item.Type == "Sword" and item.Name:lower():find(name:lower()) then
-            return tonumber(item.Mastery) or 0
-        end
-    end
-    return 0
-end
-
--- ===== Hop server =====
-local function HopLowPlayer()
-    local Joined = {}
-    local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=50"
-
-    local success, result = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet(url))
+    -- cách 2
+    pcall(function()
+        CommF:InvokeServer("LoadItem", "Yama")
     end)
+    task.wait(0.4)
+    if isEquipped("Yama") then return true end
 
-    if not success or not result or not result.data then
-        warn("❌ Lấy server list thất bại → teleport fallback")
-        TeleportService:Teleport(placeId, player)
-        return
-    end
-
-    local bestServer
-    local lowest = math.huge
-
-    for _, s in pairs(result.data) do
-        if not Joined[s.id] and s.playing < s.maxPlayers then
-            if s.playing < lowest then
-                lowest = s.playing
-                bestServer = s
-            end
+    -- cách 3 (cuối)
+    local backpack = player:WaitForChild("Backpack")
+    for _, tool in pairs(backpack:GetChildren()) do
+        if tool:IsA("Tool") and tool.Name:lower():find("yama") then
+            tool.Parent = player.Character
+            task.wait(0.3)
+            return isEquipped("Yama")
         end
     end
 
-    if bestServer then
-        Joined[bestServer.id] = true
-        print("🌐 Hop server:", bestServer.id, "số người:", bestServer.playing)
-        TeleportService:TeleportToPlaceInstance(placeId, bestServer.id, player)
-    else
-        print("⚠️ Không tìm được server trống, teleport fallback")
-        TeleportService:Teleport(placeId, player)
+    return false
+end
+
+-- ===== CHECK INVENTORY =====
+local tushitaMastery = 0
+local hasTushita = false
+local hasYama = false
+
+for _, item in pairs(CommF:InvokeServer("getInventory")) do
+    if item.Type == "Sword" then
+        if item.Name:lower():find("tushita") then
+            hasTushita = true
+            tushitaMastery = item.Mastery or 0
+        elseif item.Name:lower():find("yama") then
+            hasYama = true
+        end
     end
 end
+
+print("📊 Tushita mastery =", tushitaMastery)
+
+-- ===== LOGIC CUỐI =====
+if hasTushita and hasYama and tushitaMastery >= 350 then
+    print("🔥 Đủ điều kiện → đang equip Yama...")
+    local ok = equipYama()
+    print(ok and "✅ ĐÃ EQUIP YAMA" or "❌ EQUIP YAMA THẤT BẠI")
+else
+    print("⏳ Chưa đủ điều kiện hoặc thiếu kiếm")
+end
+
 
 -- ===== VÒNG LẶP HOP SERVER 30s =====
 while true do
