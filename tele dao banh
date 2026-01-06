@@ -1,0 +1,65 @@
+-- ===== ĐỢI GAME LOAD =====
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
+-- ===== CHỜ 20 GIÂY SAU LOAD SCRIPT =====
+task.wait(20)
+print("⏳ 20 giây đã trôi qua, bắt đầu bay...")
+
+-- ===== SERVICES =====
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+
+local plr = Players.LocalPlayer
+local char = plr.Character or plr.CharacterAdded:Wait()
+local hrp = char:WaitForChild("HumanoidRootPart")
+
+-- ===== TỌA ĐỘ MỤC TIÊU =====
+local TARGET_POS = Vector3.new(-729.8056, 381.5751, -10993.8125)
+local ARRIVE_DISTANCE = 50 -- khoảng cách tối thiểu để không bay
+
+-- ===== CHECK KHOẢNG CÁCH =====
+local distance = (hrp.Position - TARGET_POS).Magnitude
+if distance <= ARRIVE_DISTANCE then
+    print("📍 Đã ở gần mục tiêu → không bay")
+    return
+end
+
+print("🛫 Khoảng cách tới mục tiêu:", math.floor(distance))
+
+-- ===== GIẢM LAG TRƯỚC KHI BAY =====
+for _, v in pairs(char:GetDescendants()) do
+    if v:IsA("BasePart") then
+        v.CanCollide = false
+        v.Anchored = false
+        v.Transparency = 1
+    end
+end
+
+-- ===== BAY 1 LẦN =====
+local speed = 320
+local time = distance / speed
+
+local tween = TweenService:Create(
+    hrp,
+    TweenInfo.new(time, Enum.EasingStyle.Linear),
+    {CFrame = CFrame.new(TARGET_POS)}
+)
+
+tween:Play()
+tween.Completed:Wait()
+
+-- ===== ĐẾN NƠI =====
+print("🛑 Đã tới mục tiêu")
+
+-- ===== KHÔI PHỤC NHÂN VẬT =====
+for _, v in pairs(char:GetDescendants()) do
+    if v:IsA("BasePart") then
+        v.Transparency = 0
+        v.CanCollide = true
+        v.Anchored = false
+    end
+end
+
+print("✅ Bay hoàn tất")
