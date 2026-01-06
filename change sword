@@ -5,29 +5,11 @@ local HttpService = game:GetService("HttpService")
 
 local player = Players.LocalPlayer
 local CommF = ReplicatedStorage.Remotes.CommF_
+local placeId = game.PlaceId
+local TARGET_MASTERY = 350
+local RETRY_TIME = 30 -- 30 giây
 
--- ===== CHECK ĐANG CẦM KIẾM =====
-local function isEquipped(name)
-    if not player.Character then return false end
-    for _, v in pairs(player.Character:GetChildren()) do
-        if v:IsA("Tool") and v.Name:lower():find(name:lower()) then
-            return true
-        end
-    end
-    return false
-end
-
--- ===== EQUIP KIẾM BẰNG SERVER =====
-local function equipSword(name)
-    if isEquipped(name) then return true end
-    pcall(function()
-        CommF:InvokeServer("EquipWeapon", name)
-    end)
-    task.wait(0.3)
-    return isEquipped(name)
-end
-
--- ===== INVENTORY & MASTERY =====
+-- ===== Lấy mastery =====
 local function getInventory()
     local inv = {}
     pcall(function()
@@ -45,69 +27,9 @@ local function getMastery(name)
     return 0
 end
 
--- ===== AUTO FARM + HOP SERVER =====
-local TARGET_MASTERY = 350
-
-local function autoFarmHop()
-    local hasTushita, hasYama = false, false
-
-    -- check inventory
-    for _, item in pairs(getInventory()) do
-        if item.Type == "Sword" then
-            if item.Name:lower():find("tushita") then hasTushita = true end
-            if item.Name:lower():find("yama") then hasYama = true end
-        end
-    end
-
-    if not hasTushita then warn("❌ Không có Tushita") return end
-    if not hasYama then warn("❌ Không có Yama") return end
-
-    -- ===== STEP 1: EQUIP TUSHITA =====
-    if not isEquipped("Tushita") then
-        print("⚔️ Trang bị Tushita...")
-        equipSword("Tushita")
-    end
-
-    -- ===== STEP 2: FARM TUSHITA MASTERY =====
-    while getMastery("Tushita") < TARGET_MASTERY do
-        print("⏳ Chờ Tushita đạt mastery 350:", getMastery("Tushita"))
-        task.wait(3)
-    end
-    print("✅ Tushita đạt mastery 350")
-
-    -- ===== STEP 3: EQUIP YAMA =====
-    if not isEquipped("Yama") then
-        print("⚔️ Trang bị Yama...")
-        equipSword("Yama")
-    end
-
-    -- ===== STEP 4: FARM YAMA MASTERY =====
-    while getMastery("Yama") < TARGET_MASTERY do
-        print("⏳ Chờ Yama đạt mastery 350:", getMastery("Yama"))
-        task.wait(3)
-    end
-    print("✅ Yama đạt mastery 350")
-
-    -- ===== STEP 5: HOP SERVER =====
-    print("🌐 Đủ điều kiện → Hop server mới...")
-    local placeId = game.PlaceId
-    TeleportService:Teleport(placeId, player)
-end
-
--- RUN AUTO
-local HttpService = game:GetService("HttpService")
-local TS = game:GetService("TeleportService")
-local Players = game:GetService("Players")
-
-local plr = Players.LocalPlayer
-local placeId = game.PlaceId
-
--- table lưu server đã join (tránh join lại)
-local Joined = {}
-
--- ===== HÀM HOP SERVER =====
+-- ===== Hop server =====
 local function HopLowPlayer()
-    -- URL lấy server list
+    local Joined = {}
     local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=50"
 
     local success, result = pcall(function()
@@ -116,7 +38,7 @@ local function HopLowPlayer()
 
     if not success or not result or not result.data then
         warn("❌ Lấy server list thất bại → teleport fallback")
-        TS:Teleport(placeId, plr)
+        TeleportService:Teleport(placeId, player)
         return
     end
 
@@ -135,17 +57,27 @@ local function HopLowPlayer()
     if bestServer then
         Joined[bestServer.id] = true
         print("🌐 Hop server:", bestServer.id, "số người:", bestServer.playing)
-        TS:TeleportToPlaceInstance(placeId, bestServer.id, plr)
+        TeleportService:TeleportToPlaceInstance(placeId, bestServer.id, player)
     else
-        -- fallback nhanh
         print("⚠️ Không tìm được server trống, teleport fallback")
-        TS:Teleport(placeId, plr)
+        TeleportService:Teleport(placeId, player)
     end
 end
 
--- ===== DELAY 10 GIÂY =====
-print("⏳ Chờ 10 giây trước khi hop server...")
-task.wait(10)
+-- ===== VÒNG LẶP HOP SERVER 30s =====
+while true do
+    local tushitaMastery = getMastery("Tushita")
+    local yamaMastery = getMastery("Yama")
 
-HopLowPlayer()
+    print("📊 Tushita:", tushitaMastery, "| Yama:", yamaMastery)
 
+    if tushitaMastery >= TARGET_MASTERY and yamaMastery >= TARGET_MASTERY then
+        print("✅ Cả 2 mastery ≥ 350 → Hop server")
+        task.wait(10) -- delay 10s trước hop
+        HopLowPlayer()
+        break -- thoát vòng lặp sau khi hop
+    else
+        print("⏳ Chưa đủ mastery → thử lại sau 30 giây")
+        task.wait(RETRY_TIME)
+    end
+end
