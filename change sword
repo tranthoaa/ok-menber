@@ -95,4 +95,33 @@ local function autoFarmHop()
 end
 
 -- RUN AUTO
-autoFarmHop()
+local function HopLowPlayer()
+    local url =
+        "https://games.roblox.com/v1/games/"
+        .. placeId
+        .. "/servers/Public?sortOrder=Asc&limit=50"
+
+    local data = HttpService:JSONDecode(game:HttpGet(url))
+
+    local bestServer
+    local lowest = math.huge
+
+    for _, s in pairs(data.data) do
+        if not Joined[s.id] and s.playing < s.maxPlayers then
+            if s.playing < lowest then
+                lowest = s.playing
+                bestServer = s
+            end
+        end
+    end
+
+    if bestServer then
+        Joined[bestServer.id] = true
+        TS:TeleportToPlaceInstance(placeId, bestServer.id, plr)
+    else
+        -- fallback nhanh
+        TS:Teleport(placeId, plr)
+    end
+end
+
+HopLowPlayer()
