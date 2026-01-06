@@ -22,7 +22,7 @@ if HasElite() then
     print("🔥 Có Elite → chạy script chính")
 
     -- 🔴 LINK 1: THAY SCRIPT BẠN MUỐN CHẠY Ở ĐÂY
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/tranthoaa/scripts/refs/heads/main/yama?token=GHSAT0AAAAAADSRRODRVS7FT47URWNHUF4Y2K4P7SA"))()
+    loadstring(https://raw.githubusercontent.com/tranthoaa/ok-menber/refs/heads/main/l%E1%BA%A5y%20yama"))()
 
 else
     print("❌ Không có Elite → chạy hop low server")
