@@ -95,18 +95,35 @@ local function autoFarmHop()
 end
 
 -- RUN AUTO
-local function HopLowPlayer()
-    local url =
-        "https://games.roblox.com/v1/games/"
-        .. placeId
-        .. "/servers/Public?sortOrder=Asc&limit=50"
+local HttpService = game:GetService("HttpService")
+local TS = game:GetService("TeleportService")
+local Players = game:GetService("Players")
 
-    local data = HttpService:JSONDecode(game:HttpGet(url))
+local plr = Players.LocalPlayer
+local placeId = game.PlaceId
+
+-- table lưu server đã join (tránh join lại)
+local Joined = {}
+
+-- ===== HÀM HOP SERVER =====
+local function HopLowPlayer()
+    -- URL lấy server list
+    local url = "https://games.roblox.com/v1/games/" .. placeId .. "/servers/Public?sortOrder=Asc&limit=50"
+
+    local success, result = pcall(function()
+        return HttpService:JSONDecode(game:HttpGet(url))
+    end)
+
+    if not success or not result or not result.data then
+        warn("❌ Lấy server list thất bại → teleport fallback")
+        TS:Teleport(placeId, plr)
+        return
+    end
 
     local bestServer
     local lowest = math.huge
 
-    for _, s in pairs(data.data) do
+    for _, s in pairs(result.data) do
         if not Joined[s.id] and s.playing < s.maxPlayers then
             if s.playing < lowest then
                 lowest = s.playing
@@ -117,11 +134,18 @@ local function HopLowPlayer()
 
     if bestServer then
         Joined[bestServer.id] = true
+        print("🌐 Hop server:", bestServer.id, "số người:", bestServer.playing)
         TS:TeleportToPlaceInstance(placeId, bestServer.id, plr)
     else
         -- fallback nhanh
+        print("⚠️ Không tìm được server trống, teleport fallback")
         TS:Teleport(placeId, plr)
     end
 end
 
+-- ===== DELAY 10 GIÂY =====
+print("⏳ Chờ 10 giây trước khi hop server...")
+task.wait(10)
+
 HopLowPlayer()
+
